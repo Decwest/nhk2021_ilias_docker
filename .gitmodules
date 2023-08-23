@@ -1,0 +1,3 @@
+[submodule "nhk2021_ilias"]
+	path = nhk2021_ilias
+	url = https://github.com/KeioRoboticsAssociation/nhk2021_ilias.git
