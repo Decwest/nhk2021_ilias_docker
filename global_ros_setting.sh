@@ -44,7 +44,7 @@ cdls()
     \cd "$@" && ls
 }
 alias cd="cdls"
-alias cm="cd ${CATKIN_HOME} && catkin_make -DCMAKE_BUILD_TYPE=Release&& cd -"
+alias cm="cd ${CATKIN_HOME} && catkin_make -DCATKIN_BLACKLIST_PACKAGES="omni_wheelctrl" -DCMAKE_BUILD_TYPE=Release && cd -"
 alias cc="cd ${CATKIN_HOME} && rm -rf devel && rm -rf build && cd -"
 
 ## echo

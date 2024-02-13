@@ -1,6 +1,7 @@
 FROM osrf/ros:melodic-desktop-full
 ARG USER=initial
 ARG GROUP=initial
+ARG workspace=initial
 ARG UID=1000
 #FROM $base_image
 RUN echo base image: ${base_image}
@@ -36,7 +37,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
    usbutils \
    sudo \
    libusb-1.0-0-dev \
-   dbus-x11
+   dbus-x11 \
+   python-rosinstall python-rosinstall-generator python-rosdep python-wstool \
+   ninja-build liburdfdom-tools \
+   libceres-dev libprotobuf-dev protobuf-compiler libprotoc-dev \
+   python-catkin-tools
 
 #######################################################################
 ##                           install font                            ##
@@ -49,7 +54,7 @@ RUN apt-get update && apt-get install -y ttf-mscorefonts-installer \
 #######################################################################
 ##                       install nvidia docker                       ##
 #######################################################################
-RUN add-apt-repository ppa:kisak/kisak-mesa -y
+RUN add-apt-repository ppa:kisak/turtle
 RUN apt-get install -y --no-install-recommends \
     libxau-dev \
     libxdmcp-dev \
@@ -58,6 +63,12 @@ RUN apt-get install -y --no-install-recommends \
     libx11-dev \
     mesa-utils \
     x11-apps
+
+RUN sudo apt update
+RUN sudo apt upgrade -y 
+RUN sudo apt install mesa-utils
+# if you wouldn't update mesa, you could not activate gazebo9
+#see: https://github.com/osrf/docker_images/issues/566
 
 # nvidia-container-runtime
 ENV NVIDIA_VISIBLE_DEVICES ${NVIDIA_VISIBLE_DEVICES:-all}
@@ -72,21 +83,9 @@ ENV LD_LIBRARY_PATH /usr/lib/x86_64-linux-gnu:/usr/lib/i386-linux-gnu${LD_LIBRAR
 #######################################################################
 ##                   install additional packages                     ##
 #######################################################################
-WORKDIR  /
-# WORKDIR  /home/${USER}/catkin_ws/src
 # setup environment
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
-
-
-
-# RUN apt update 
-# RUN apt install -y ros-$ROS_DISTRO-navigation
-# RUN apt install -y ros-$ROS_DISTRO-realsense2-camera
-# RUN apt install -y ros-$ROS_DISTRO-realsense2-description
-# RUN apt install -y ros-$ROS_DISTRO-jsk-visualization
-# RUN apt-get update && apt-get install -y python3-pip python-is-python3 python3-tk
-# RUN pip install networkx scipy shapely pandas
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
@@ -96,33 +95,32 @@ CMD ["bash"]
 #######################################################################
 RUN rm -rf /var/lib/apt/lists/*
 
-#######################################################################
-##                         make sudoer user                          ##
-#######################################################################
-
-ARG USER
-ARG USER_ID
- 
-RUN groupadd -g 1000 developer && \
-    useradd  -g      developer -G sudo -m -u $USER_ID -s /bin/bash ${USER} && \
-    echo "${USER}:${USER}" | chpasswd
-
-RUN echo "Defaults visiblepw" >> /etc/sudoers
-RUN echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+RUN echo "export PS1='\[\e[1;31;40m\]NHK2021_ILIAS\[\e[0m\] \u:\w\$ '">> /root/.bashrc
+RUN echo "source /ros_setting.sh">> /root/.bashrc
 
 #######################################################################
-##              make user accessible to usb and so on                ##
+##                      install nhk2021 ilias                        ##
 #######################################################################
-RUN adduser ${USER} dialout
-RUN adduser ${USER} tty
-RUN adduser ${USER} video
-RUN adduser ${USER} root
 
-# USER root
-USER ${USER}
+COPY ./nhk2021_ilias ${workspace}/src/nhk2021_ilias
+# install from git repository
+RUN cd ${workspace}/src && git clone https://github.com/anhquanvgu/bno055_usb_stick.git
+RUN cd ${workspace}/src && git clone https://github.com/yoshito-n-students/bno055_usb_stick_msgs.git
+RUN cd ${workspace}/src && git clone -b noetic https://github.com/KeioRoboticsAssociation/wheelctrl_ros.git
+RUN cd ${workspace}/src && git clone https://github.com/moden3/serial_test.git
+RUN cd ${workspace}/src && git clone -b melodic-devel https://github.com/pal-robotics/realsense_gazebo_plugin.git
 
-RUN echo "export PS1='\[\e[1;31;40m\]NHK2021_ILIAS\[\e[0m\] \u:\w\$ '">> ~/.bashrc
-RUN echo "source /ros_setting.sh">> ~/.bashrc
+# install from apt repository
+RUN apt update
+RUN apt-get install -y ros-melodic-realsense2-description
+RUN apt-get install -y ros-melodic-robot-localization
+RUN apt-get install -y ros-melodic-navigation
+RUN apt-get install -y ros-melodic-rplidar-ros
+RUN apt-get install -y ros-melodic-roswww
+RUN apt-get install -y ros-melodic-tf2-web-republisher
 
-ARG workspace
+## install pyrealsense2
+RUN apt install -y python-pip
+RUN pip install pyrealsense2
+
 WORKDIR ${workspace}
